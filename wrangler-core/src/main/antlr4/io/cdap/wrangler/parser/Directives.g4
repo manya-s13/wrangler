@@ -64,6 +64,8 @@ directive
     | stringList
     | numberRanges
     | properties
+    | byteSizeArg
+    | timeDurationArg
   )*?
   ;
 
@@ -115,6 +117,14 @@ identifier
  : Identifier
  ;
 
+byteSizeArg
+ : BYTE_SIZE
+ ;
+
+timeDurationArg
+ : TIME_DURATION
+ ;
+
 properties
  : 'prop' ':' OBrace (propertyList)+  CBrace
  | 'prop' ':' OBrace OBrace (propertyList)+ CBrace { notifyErrorListeners("Too many start paranthesis"); }
@@ -140,7 +150,7 @@ numberRange
  ;
 
 value
- : String | Number | Column | Bool
+ : String | Number | Column | Bool | BYTE_SIZE | TIME_DURATION
  ;
 
 ecommand
@@ -280,6 +290,16 @@ EscapeSequence
    |   OctalEscape
    ;
 
+// Byte size literal (e.g., 10MB, 5.5kb)
+BYTE_SIZE
+ : Number BYTE_UNIT
+ ;
+
+// Time duration literal (e.g., 100ms, 2.5min) 
+TIME_DURATION
+ : Number TIME_UNIT
+ ;
+
 fragment
 OctalEscape
    :   '\\' ('0'..'3') ('0'..'7') ('0'..'7')
@@ -310,4 +330,20 @@ fragment Int
 
 fragment Digit
  : [0-9]
+ ;
+
+/*
+ * Fragments for byte size units (case insensitive):
+ * KB, MB, GB, TB, PB (with optional 'B' suffix)
+ */
+fragment BYTE_UNIT
+ : [Kk][Bb]? | [Mm][Bb]? | [Gg][Bb]? | [Tt][Bb]? | [Pp][Bb]?
+ ;
+
+/*
+ * Fragments for time duration units (case insensitive):
+ * ns, us, ms, s, sec, min, h, hr, d, day 
+ */
+fragment TIME_UNIT
+ : [nN][sS] | [uU][sS] | [mM][sS] | 's' | 'sec' | 'min' | 'h' | 'hr' | 'd' | 'day'
  ;
