@@ -1,218 +1,294 @@
-# Data Prep
+# Aggregate Stats Directive
 
-![cm-available](https://cdap-users.herokuapp.com/assets/cm-available.svg)
-![cdap-transform](https://cdap-users.herokuapp.com/assets/cdap-transform.svg)
-[![Build Status](https://travis-ci.org/cdapio/hydrator-plugins.svg?branch=develop)](https://travis-ci.org/cdapio/hydrator-plugins)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/11434/badge.svg)](https://scan.coverity.com/projects/hydrator-wrangler-transform)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.cdap.wrangler/wrangler-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.cdap.wrangler/wrangler-core)
-[![Javadoc](https://javadoc-emblem.rhcloud.com/doc/io.cdap.wrangler/wrangler-core/badge.svg)](http://www.javadoc.io/doc/io.cdap.wrangler/wrangler-core)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Join CDAP community](https://cdap-users.herokuapp.com/badge.svg?t=wrangler)](https://cdap-users.herokuapp.com?t=1)
+The `aggregate-stats` directive in Wrangler aggregates byte sizes and time durations from input rows, computing either the total or average and outputting results in specified units. This feature is implemented in the `io.cdap.directives.aggregate.AggregateStats` class and supports flexible unit conversions for sizes (e.g., `kb`, `mb`) and times (e.g., `ms`, `s`).
 
-A collection of libraries, a pipeline plugin, and a CDAP service for performing data
-cleansing, transformation, and filtering using a set of data manipulation instructions
-(directives). These instructions are either generated using an interative visual tool or
-are manually created.
+## Table of Contents
 
-  * Data Prep defines few concepts that might be useful if you are just getting started with it. Learn about them [here](wrangler-docs/concepts.md)
-  * The Data Prep Transform is [separately documented](wrangler-transform/wrangler-docs/data-prep-transform.md).
-  * [Data Prep Cheatsheet](wrangler-docs/cheatsheet.md)
+- [Aggregate Stats Directive](#aggregate-stats-directive)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Usage](#usage)
+  - [Syntax](#syntax)
+  - [Supported Units](#supported-units)
+    - [Byte Sizes](#byte-sizes)
+    - [Time Durations](#time-durations)
+  - [Examples](#examples)
+    - [Example 1: Total Aggregation (Default Units)](#example-1-total-aggregation-default-units)
+- [Aggregate Stats Directive](#aggregate-stats-directive-1)
+  - [Table of Contents](#table-of-contents-1)
+  - [Overview](#overview-1)
+  - [Usage](#usage-1)
+  - [Syntax](#syntax-1)
+  - [Supported Units](#supported-units-1)
+    - [Byte Sizes](#byte-sizes-1)
+    - [Time Durations](#time-durations-1)
+  - [Examples](#examples-1)
+    - [Example 1: Total Aggregation (Default Units)](#example-1-total-aggregation-default-units-1)
+    - [Example 2: Average Aggregation (Custom Units)](#example-2-average-aggregation-custom-units)
+    - [Example 3: Invalid Inputs](#example-3-invalid-inputs)
+    - [Example 4: Empty Input](#example-4-empty-input)
+  - [Setup](#setup)
 
-## New Features
+## Overview
 
-More [here](wrangler-docs/upcoming-features.md) on upcoming features.
+The `aggregate-stats` directive processes rows containing byte size and time duration values, aggregating them into a single output row. It supports:
 
-  * **User Defined Directives, also known as UDD**, allow you to create custom functions to transform records within CDAP DataPrep or a.k.a Wrangler. CDAP comes with a comprehensive library of functions. There are however some omissions, and some specific cases for which UDDs are the solution. Additional information on how you can build your custom directives [here](wrangler-docs/custom-directive.md).
-    * Migrating directives from version 1.0 to version 2.0 [here](wrangler-docs/directive-migration.md)
-    * Information about Grammar [here](wrangler-docs/grammar/grammar-info.md)
-    * Various `TokenType` supported by system [here](../api/src/main/java/io/cdap/wrangler/api/parser/TokenType.java)
-    * Custom Directive Implementation Internals [here](wrangler-docs/udd-internal.md)
+- **Aggregation Types**: Total or average.
+- **Input Columns**: One column for byte sizes, one for time durations.
+- **Output Columns**: User-specified columns for aggregated size and time.
+- **Unit Conversion**: Converts inputs to a base unit (bytes, nanoseconds) and outputs to user-specified units.
+- **Error Handling**: Skips invalid inputs (e.g., `"invalid"`) and throws errors for unsupported units.
 
-  * A new capability that allows CDAP Administrators to **restrict the directives** that are accessible to their users.
-More information on configuring can be found [here](wrangler-docs/exclusion-and-aliasing.md)
+This directive is ideal for summarizing data like file sizes or processing times in data pipelines.
 
-## Demo Videos and Recipes
+## Usage
 
-Videos and Screencasts are best way to learn, so we have compiled simple, short screencasts that shows some of the features of Data Prep. Additional videos can be found [here](https://www.youtube.com/playlist?list=PLhmsf-NvXKJn-neqefOrcl4n7zU4TWmIr)
+Add the `aggregate-stats` directive to your Wrangler recipe to aggregate data. Specify input columns, output columns, and optional units/aggregation type. The directive processes all rows and returns one row with the aggregated values.
 
-### Videos
+## Syntax
 
-  * [SCREENCAST] [Creating Lookup Dataset and Joining](https://www.youtube.com/watch?v=Nc1b0rsELHQ)
-  * [SCREENCAST] [Restricted Directives](https://www.youtube.com/watch?v=71EcMQU714U)
-  * [SCREENCAST] [Parse Excel files in CDAP](https://www.youtube.com/watch?v=su5L1noGlEk)
-  * [SCREENCAST] [Parse File As AVRO File](https://www.youtube.com/watch?v=tmwAw4dKUNc)
-  * [SCREENCAST] [Parsing Binary Coded AVRO Messages](https://www.youtube.com/watch?v=Ix_lPo-PDJY)
-  * [SCREENCAST] [Parsing Binary Coded AVRO Messages & Protobuf messages using schema registry](https://www.youtube.com/watch?v=LVLIdWnUX1k)
-  * [SCREENCAST] [Quantize a column - Digitize](https://www.youtube.com/watch?v=VczkYX5SRtY)
-  * [SCREENCAST] [Data Cleansing capability with send-to-error directive](https://www.youtube.com/watch?v=aZd5H8hIjDc)
-  * [SCREENCAST] [Building Data Prep from the GitHub source](https://youtu.be/pGGjKU04Y38)
-  * [VOICE-OVER] [End-to-End Demo Video](https://youtu.be/AnhF0qRmn24)
-  * [SCREENCAST] [Ingesting into Kudu](https://www.youtube.com/watch?v=KBW7a38vlUM)
-  * [SCREENCAST] [Realtime HL7 CCDA XML from Kafka into Time Parititioned Parquet](https://youtu.be/0fqNmnOnD-0)
-  * [SCREENCAST] [Parsing JSON file](https://youtu.be/vwnctcGDflE)
-  * [SCREENCAST] [Flattening arrays](https://youtu.be/SemHxgBYIsY)
-  * [SCREENCAST] [Data cleansing with send-to-error directive](https://www.youtube.com/watch?v=aZd5H8hIjDc)
-  * [SCREENCAST] [Publishing to Kafka](https://www.youtube.com/watch?v=xdc8pvvlI48)
-  * [SCREENCAST] [Fixed length to JSON](https://www.youtube.com/watch?v=3AXu4m1swuM)
+aggregate-stats :size-column :time-column :output-size-column :output-time-column [output-size-unit] [output-time-unit] [aggregation-type]
 
-### Recipes
+- **`:size-column`**: Input column with byte sizes (e.g., `"10kb"`, `"1.5MB"`).
+- **`:time-column`**: Input column with time durations (e.g., `"5ms"`, `"2.1s"`).
+- **`:output-size-column`**: Output column for aggregated size (e.g., `:total_size`).
+- **`:output-time-column`**: Output column for aggregated time (e.g., `:total_time`).
+- **`[output-size-unit]`**: Optional size unit for output (default: `mb`).
+- **`[output-time-unit]`**: Optional time unit for output (default: `s`).
+- **`[aggregation-type]`**: Optional type, either `total` or `average` (default: `total`).
 
-  * [Parsing Apache Log Files](wrangler-demos/parsing-apache-log-files.md)
-  * [Parsing CSV Files and Extracting Column Values](wrangler-demos/parsing-csv-extracting-column-values.md)
-  * [Parsing HL7 CCDA XML Files](wrangler-demos/parsing-hl7-ccda-xml-files.md)
+**Note**: Column names must be prefixed with `:` (e.g., `:size`). Units and aggregation type are case-insensitive.
 
-## Available Directives
+## Supported Units
 
-These directives are currently available:
+### Byte Sizes
 
-| Directive                                                              | Description                                                      |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| **Parsers**                                                            |                                                                  |
-| [JSON Path](wrangler-docs/directives/json-path.md)                              | Uses a DSL (a JSON path expression) for parsing JSON records     |
-| [Parse as AVRO](wrangler-docs/directives/parse-as-avro.md)                      | Parsing an AVRO encoded message - either as binary or json       |
-| [Parse as AVRO File](wrangler-docs/directives/parse-as-avro-file.md)            | Parsing an AVRO data file                                        |
-| [Parse as CSV](wrangler-docs/directives/parse-as-csv.md)                        | Parsing an input record as comma-separated values                |
-| [Parse as Date](wrangler-docs/directives/parse-as-date.md)                      | Parsing dates using natural language processing                  |
-| [Parse as Excel](wrangler-docs/directives/parse-as-excel.md)                    | Parsing excel file.                                              |
-| [Parse as Fixed Length](wrangler-docs/directives/parse-as-fixed-length.md)      | Parses as a fixed length record with specified widths            |
-| [Parse as HL7](wrangler-docs/directives/parse-as-hl7.md)                        | Parsing Health Level 7 Version 2 (HL7 V2) messages               |
-| [Parse as JSON](wrangler-docs/directives/parse-as-json.md)                      | Parsing a JSON object                                            |
-| [Parse as Log](wrangler-docs/directives/parse-as-log.md)                        | Parses access log files as from Apache HTTPD and nginx servers   |
-| [Parse as Protobuf](wrangler-docs/directives/parse-as-log.md)                   | Parses an Protobuf encoded in-memory message using descriptor    |
-| [Parse as Simple Date](wrangler-docs/directives/parse-as-simple-date.md)        | Parses date strings                                              |
-| [Parse XML To JSON](wrangler-docs/directives/parse-xml-to-json.md)              | Parses an XML document into a JSON structure                     |
-| [Parse as Currency](wrangler-docs/directives/parse-as-currency.md)              | Parses a string representation of currency into a number.        |
-| [Parse as Datetime](wrangler-docs/directives/parse-as-datetime.md)              | Parses strings with datetime values to CDAP datetime type        |
-| **Output Formatters**                                                  |                                                                  |
-| [Write as CSV](wrangler-docs/directives/write-as-csv.md)                        | Converts a record into CSV format                                |
-| [Write as JSON](wrangler-docs/directives/write-as-json-map.md)                  | Converts the record into a JSON map                              |
-| [Write JSON Object](wrangler-docs/directives/write-as-json-object.md)           | Composes a JSON object based on the fields specified.            |
-| [Format as Currency](wrangler-docs/directives/format-as-currency.md)            | Formats a number as currency as specified by locale.             |
-| **Transformations**                                                    |                                                                  |
-| [Changing Case](wrangler-docs/directives/changing-case.md)                      | Changes the case of column values                                |
-| [Cut Character](wrangler-docs/directives/cut-character.md)                      | Selects parts of a string value                                  |
-| [Set Column](wrangler-docs/directives/set-column.md)                            | Sets the column value to the result of an expression execution   |
-| [Find and Replace](wrangler-docs/directives/find-and-replace.md)                | Transforms string column values using a "sed"-like expression    |
-| [Index Split](wrangler-docs/directives/index-split.md)                          | (_Deprecated_)                                                   |
-| [Invoke HTTP](wrangler-docs/directives/invoke-http.md)                          | Invokes an HTTP Service (_Experimental_, potentially slow)       |
-| [Quantization](wrangler-docs/directives/quantize.md)                            | Quantizes a column based on specified ranges                     |
-| [Regex Group Extractor](wrangler-docs/directives/extract-regex-groups.md)       | Extracts the data from a regex group into its own column         |
-| [Setting Character Set](wrangler-docs/directives/set-charset.md)                | Sets the encoding and then converts the data to a UTF-8 String   |
-| [Setting Record Delimiter](wrangler-docs/directives/set-record-delim.md)        | Sets the record delimiter                                        |
-| [Split by Separator](wrangler-docs/directives/split-by-separator.md)            | Splits a column based on a separator into two columns            |
-| [Split Email Address](wrangler-docs/directives/split-email.md)                  | Splits an email ID into an account and its domain                |
-| [Split URL](wrangler-docs/directives/split-url.md)                              | Splits a URL into its constituents                               |
-| [Text Distance (Fuzzy String Match)](wrangler-docs/directives/text-distance.md) | Measures the difference between two sequences of characters      |
-| [Text Metric (Fuzzy String Match)](wrangler-docs/directives/text-metric.md)     | Measures the difference between two sequences of characters      |
-| [URL Decode](wrangler-docs/directives/url-decode.md)                            | Decodes from the `application/x-www-form-urlencoded` MIME format |
-| [URL Encode](wrangler-docs/directives/url-encode.md)                            | Encodes to the `application/x-www-form-urlencoded` MIME format   |
-| [Trim](wrangler-docs/directives/trim.md)                                        | Functions for trimming white spaces around string data           |
-| **Encoders and Decoders**                                              |                                                                  |
-| [Decode](wrangler-docs/directives/decode.md)                                    | Decodes a column value as one of `base32`, `base64`, or `hex`    |
-| [Encode](wrangler-docs/directives/encode.md)                                    | Encodes a column value as one of `base32`, `base64`, or `hex`    |
-| **Unique ID**                                                          |                                                                  |
-| [UUID Generation](wrangler-docs/directives/generate-uuid.md)                    | Generates a universally unique identifier (UUID) .Recommended to use with Wrangler version 4.4.0 and above due to an important bug fix [CDAP-17732](https://cdap.atlassian.net/browse/CDAP-17732)             |
-| **Date Transformations**                                               |                                                                  |
-| [Diff Date](wrangler-docs/directives/diff-date.md)                              | Calculates the difference between two dates                      |
-| [Format Date](wrangler-docs/directives/format-date.md)                          | Custom patterns for date-time formatting                         |
-| [Format Unix Timestamp](wrangler-docs/directives/format-unix-timestamp.md)      | Formats a UNIX timestamp as a date                               |
-| **DateTime Transformations**                                                    |                                                                  |
-| [Current DateTime](wrangler-docs/directives/current-datetime.md)                | Generates the current datetime using the given zone or UTC by default|
-| [Datetime To Timestamp](wrangler-docs/directives/datetime-to-timestamp.md)      | Converts a datetime value to timestamp with the given zone       |
-| [Format Datetime](wrangler-docs/directives/format-datetime.md)                  | Formats a datetime value to custom date time pattern strings     |
-| [Timestamp To Datetime](wrangler-docs/directives/timestamp-to-datetime.md)      | Converts a timestamp value to datetime                           |
-| **Lookups**                                                            |                                                                  |
-| [Catalog Lookup](wrangler-docs/directives/catalog-lookup.md)                    | Static catalog lookup of ICD-9, ICD-10-2016, ICD-10-2017 codes   |
-| [Table Lookup](wrangler-docs/directives/table-lookup.md)                        | Performs lookups into Table datasets                             |
-| **Hashing & Masking**                                                  |                                                                  |
-| [Message Digest or Hash](wrangler-docs/directives/hash.md)                      | Generates a message digest                                       |
-| [Mask Number](wrangler-docs/directives/mask-number.md)                          | Applies substitution masking on the column values                |
-| [Mask Shuffle](wrangler-docs/directives/mask-shuffle.md)                        | Applies shuffle masking on the column values                     |
-| **Row Operations**                                                     |                                                                  |
-| [Filter Row if Matched](wrangler-docs/directives/filter-row-if-matched.md)      | Filters rows that match a pattern for a column                                         |
-| [Filter Row if True](wrangler-docs/directives/filter-row-if-true.md)            | Filters rows if the condition is true.                                                  |
-| [Filter Row Empty of Null](wrangler-docs/directives/filter-empty-or-null.md)    | Filters rows that are empty of null.                    |
-| [Flatten](wrangler-docs/directives/flatten.md)                                  | Separates the elements in a repeated field                       |
-| [Fail on condition](wrangler-docs/directives/fail.md)                           | Fails processing when the condition is evaluated to true.        |
-| [Send to Error](wrangler-docs/directives/send-to-error.md)                      | Filtering of records to an error collector                       |
-| [Send to Error And Continue](wrangler-docs/directives/send-to-error-and-continue.md) | Filtering of records to an error collector and continues processing                      |
-| [Split to Rows](wrangler-docs/directives/split-to-rows.md)                      | Splits based on a separator into multiple records                |
-| **Column Operations**                                                  |                                                                  |
-| [Change Column Case](wrangler-docs/directives/change-column-case.md)            | Changes column names to either lowercase or uppercase            |
-| [Changing Case](wrangler-docs/directives/changing-case.md)                      | Change the case of column values                                 |
-| [Cleanse Column Names](wrangler-docs/directives/cleanse-column-names.md)        | Sanatizes column names, following specific rules                 |
-| [Columns Replace](wrangler-docs/directives/columns-replace.md)                  | Alters column names in bulk                                      |
-| [Copy](wrangler-docs/directives/copy.md)                                        | Copies values from a source column into a destination column     |
-| [Drop Column](wrangler-docs/directives/drop.md)                                 | Drops a column in a record                                       |
-| [Fill Null or Empty Columns](wrangler-docs/directives/fill-null-or-empty.md)    | Fills column value with a fixed value if null or empty           |
-| [Keep Columns](wrangler-docs/directives/keep.md)                                | Keeps specified columns from the record                          |
-| [Merge Columns](wrangler-docs/directives/merge.md)                              | Merges two columns by inserting a third column                   |
-| [Rename Column](wrangler-docs/directives/rename.md)                             | Renames an existing column in the record                         |
-| [Set Column Header](wrangler-docs/directives/set-headers.md)                     | Sets the names of columns, in the order they are specified       |
-| [Split to Columns](wrangler-docs/directives/split-to-columns.md)                | Splits a column based on a separator into multiple columns       |
-| [Swap Columns](wrangler-docs/directives/swap.md)                                | Swaps column names of two columns                                |
-| [Set Column Data Type](wrangler-docs/directives/set-type.md)                    | Convert data type of a column                                    |
-| **NLP**                                                                |                                                                  |
-| [Stemming Tokenized Words](wrangler-docs/directives/stemming.md)                | Applies the Porter stemmer algorithm for English words           |
-| **Transient Aggregators & Setters**                                    |                                                                  |
-| [Increment Variable](wrangler-docs/directives/increment-variable.md)            | Increments a transient variable with a record of processing.     |
-| [Set Variable](wrangler-docs/directives/set-variable.md)                        | Sets a transient variable with a record of processing.     |
-| **Functions**                                                          |                                                                  |
-| [Data Quality](wrangler-docs/functions/dq-functions.md)                         | Data quality check functions. Checks for date, time, etc.        |
-| [Date Manipulations](wrangler-docs/functions/date-functions.md)                 | Functions that can manipulate date                               |
-| [DDL](wrangler-docs/functions/ddl-functions.md)                                 | Functions that can manipulate definition of data                 |
-| [JSON](wrangler-docs/functions/json-functions.md)                               | Functions that can be useful in transforming your data           |
-| [Types](wrangler-docs/functions/type-functions.md)                              | Functions for detecting the type of data                         |
+- `b` (bytes)
+- `kb` (kilobytes)
+- `mb` (megabytes)
+- `gb` (gigabytes)
+- `tb` (terabytes)
+- `pb` (petabytes)
 
-## Performance
+### Time Durations
 
-Initial performance tests show that with a set of directives of high complexity for
-transforming data, *DataPrep* is able to process at about ~106K records per second. The
-rates below are specified as *records/second*. 
+- `ns` (nanoseconds)
+- `us` (microseconds)
+- `ms` (milliseconds)
+- `s` or `sec` (seconds)
+- `min` (minutes)
+- `h` or `hr` (hours)
+- `d` or `day` (days)
 
-| Directive Complexity | Column Count |    Records |           Size | Mean Rate |
-| -------------------- | :----------: | ---------: | -------------: | --------: |
-| High (167 Directives) |      426      | 127,946,398 |  82,677,845,324 | 106,367.27 |
-| High (167 Directives) |      426      | 511,785,592 | 330,711,381,296 | 105,768.93 |
+Invalid units (e.g., `xb`) throw a `DirectiveExecutionException`.
 
+## Examples
 
-## Contact
+### Example 1: Total Aggregation (Default Units)
 
-### Mailing Lists
+Sum byte sizes and times, outputting in megabytes (`mb`) and seconds (`s`).
 
-CDAP User Group and Development Discussions:
+**Recipe**:
+My apologies for the misunderstanding. Thank you for clarifying that you want the README file as a standalone file with proper formatting. Since we’ve been working on the aggregate-stats feature in wrangler-core (with AggregateStats.java and AggregateStatsTest.java, avoiding changes to ByteSize.java and TimeDuration.java), I’ll provide the README file exactly as previously shared, ensuring it’s a single, well-formatted Markdown file that instructs users on how to use the aggregate-stats directive. It will include usage instructions, syntax, supported units, examples, setup steps, testing commands, and troubleshooting tips, all tailored to your implementation (internal parsing, double outputs, :column syntax). This will be the complete file, ready to be saved as README.md.
 
-* [cdap-user@googlegroups.com](https://groups.google.com/d/forum/cdap-user)
+README File: README.md
+markdown
 
-The *cdap-user* mailing list is primarily for users using the product to develop
-applications or building plugins for appplications. You can expect questions from
-users, release announcements, and any other discussions that we think will be helpful
-to the users.
+Collapse
 
-### IRC Channel
+Wrap
 
-CDAP IRC Channel: [#cdap on irc.freenode.net](http://webchat.freenode.net?channels=%23cdap)
+Copy
 
-### Slack Team
+# Aggregate Stats Directive
 
-CDAP Users on Slack: [cdap-users team](https://cdap-users.herokuapp.com)
+The `aggregate-stats` directive in Wrangler aggregates byte sizes and time durations from input rows, computing either the total or average and outputting results in specified units. This feature is implemented in the `io.cdap.directives.aggregate.AggregateStats` class and supports flexible unit conversions for sizes (e.g., `kb`, `mb`) and times (e.g., `ms`, `s`).
 
+## Table of Contents
 
-## License and Trademarks
+- [Overview](#overview)
+- [Usage](#usage)
+- [Syntax](#syntax)
+- [Supported Units](#supported-units)
+- [Examples](#examples)
+- [Setup](#setup)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
 
-Copyright © 2016-2019 Cask Data, Inc.
+## Overview
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-in compliance with the License. You may obtain a copy of the License at
+The `aggregate-stats` directive processes rows containing byte size and time duration values, aggregating them into a single output row. It supports:
 
-http://www.apache.org/licenses/LICENSE-2.0
+- **Aggregation Types**: Total or average.
+- **Input Columns**: One column for byte sizes, one for time durations.
+- **Output Columns**: User-specified columns for aggregated size and time.
+- **Unit Conversion**: Converts inputs to a base unit (bytes, nanoseconds) and outputs to user-specified units.
+- **Error Handling**: Skips invalid inputs (e.g., `"invalid"`) and throws errors for unsupported units.
 
-Unless required by applicable law or agreed to in writing, software distributed under the
-License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-either express or implied. See the License for the specific language governing permissions
-and limitations under the License.
+This directive is ideal for summarizing data like file sizes or processing times in data pipelines.
 
-Cask is a trademark of Cask Data, Inc. All rights reserved.
+## Usage
 
-Apache, Apache HBase, and HBase are trademarks of The Apache Software Foundation. Used with
-permission. No endorsement by The Apache Software Foundation is implied by the use of these marks.
+Add the `aggregate-stats` directive to your Wrangler recipe to aggregate data. Specify input columns, output columns, and optional units/aggregation type. The directive processes all rows and returns one row with the aggregated values.
+
+## Syntax
+
+aggregate-stats :size-column :time-column :output-size-column :output-time-column [output-size-unit] [output-time-unit] [aggregation-type]
+
+text
+
+Collapse
+
+Wrap
+
+Copy
+
+- **`:size-column`**: Input column with byte sizes (e.g., `"10kb"`, `"1.5MB"`).
+- **`:time-column`**: Input column with time durations (e.g., `"5ms"`, `"2.1s"`).
+- **`:output-size-column`**: Output column for aggregated size (e.g., `:total_size`).
+- **`:output-time-column`**: Output column for aggregated time (e.g., `:total_time`).
+- **`[output-size-unit]`**: Optional size unit for output (default: `mb`).
+- **`[output-time-unit]`**: Optional time unit for output (default: `s`).
+- **`[aggregation-type]`**: Optional type, either `total` or `average` (default: `total`).
+
+**Note**: Column names must be prefixed with `:` (e.g., `:size`). Units and aggregation type are case-insensitive.
+
+## Supported Units
+
+### Byte Sizes
+
+- `b` (bytes)
+- `kb` (kilobytes)
+- `mb` (megabytes)
+- `gb` (gigabytes)
+- `tb` (terabytes)
+- `pb` (petabytes)
+
+### Time Durations
+
+- `ns` (nanoseconds)
+- `us` (microseconds)
+- `ms` (milliseconds)
+- `s` or `sec` (seconds)
+- `min` (minutes)
+- `h` or `hr` (hours)
+- `d` or `day` (days)
+
+Invalid units (e.g., `xb`) throw a `DirectiveExecutionException`.
+
+## Examples
+
+### Example 1: Total Aggregation (Default Units)
+
+Sum byte sizes and times, outputting in megabytes (`mb`) and seconds (`s`).
+
+**Recipe**:
+aggregate-stats :size :time :total_size :total_time
+
+**Input**:
+
+| size   | time  |
+|--------|-------|
+| 10kb   | 5ms   |
+| 1.5MB  | 2.1s  |
+
+**Output**:
+
+| total_size | total_time |
+|------------|------------|
+| 1.527      | 2.105      |
+
+**Explanation**:
+
+- `10kb + 1.5MB = 10,240 + 1,572,864 = 1,583,104 bytes = 1.527 mb`
+- `5ms + 2.1s = 5,000,000 + 2,100,000,000 = 2,105,000,000 ns = 2.105 s`
+
+### Example 2: Average Aggregation (Custom Units)
+
+Compute the average size in kilobytes (`kb`) and time in milliseconds (`ms`).
+
+**Recipe**:
+aggregate-stats :size :time :avg_size :avg_time kb ms average
+
+**Input**:
+
+| size   | time  |
+|--------|-------|
+| 10kb   | 5ms   |
+| 1.5MB  | 2.1s  |
+
+**Output**:
+
+| avg_size | avg_time |
+|----------|----------|
+| 791.552  | 1052.5   |
+
+**Explanation**:
+
+- `(10kb + 1.5MB) / 2 = (10,240 + 1,572,864) / 2 = 791,552 bytes = 791.552 kb`
+- `(5ms + 2.1s) / 2 = (5,000,000 + 2,100,000,000) / 2 = 1,052,500,000 ns = 1052.5 ms`
+
+### Example 3: Invalid Inputs
+
+Skip invalid values and aggregate valid ones.
+
+**Recipe**:
+aggregate-stats :size :time :total_size :total_time mb s
+
+**Input**:
+
+| size   | time  |
+|--------|-------|
+| invalid| 5ms   |
+| 1MB    | xyz   |
+| 10kb   | 1s    |
+
+**Output**:
+
+| total_size | total_time |
+|------------|------------|
+| 1.010      | 1.005      |
+
+**Explanation**:
+
+- Skips `"invalid"`, aggregates `1MB + 10kb = 1,048,576 + 10,240 = 1,058,816 bytes = 1.010 mb`
+- Skips `"xyz"`, aggregates `5ms + 1s = 5,000,000 + 1,000,000,000 = 1,005,000,000 ns = 1.005 s`
+
+### Example 4: Empty Input
+
+Handle empty input with zero outputs.
+
+**Recipe**:
+aggregate-stats :size :time :total_size :total_time
+
+**Input**:
+*(empty)*
+
+**Output**:
+
+| total_size | total_time |
+|------------|------------|
+| 0.0        | 0.0        |
+
+## Setup
+
+1. **Clone the Repository**:
+
+   ```bash
+   git clone <wrangler-repo-url>
+   cd wrangler/wrangler-core
+
+2. Build the Project:
+  mvn clean compile
+  This compiles AggregateStats.java and generates ANTLR parser classes from Directives.g4.
+
+3. Testing this project
+  mvn test -Dtest=AggregateStatsTest
+  The tests cover:
+
+  Total aggregation with default units (mb, s).
+  Average aggregation with custom units (kb, ms).
+  Invalid inputs (skipped gracefully).
+  Empty input (returns zeros).
+  Invalid units (throws DirectiveExecutionException).
+  
