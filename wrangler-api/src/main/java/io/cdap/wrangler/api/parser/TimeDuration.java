@@ -62,8 +62,8 @@
      /**
       * @return duration in milliseconds
       */
-     public long getMillis() {
-         return nanos / 1_000_000;
+     public double getMillis() {
+         return nanos / 1_000_000.0;
      }
  
      /**
@@ -74,6 +74,33 @@
      }
  
      /**
+      * Gets the duration in the specified unit
+      * @param unit The unit to convert to (e.g., "ns", "ms", "s", "min", "h", "d")
+      * @return The duration in the specified unit
+      */
+      public double getValue(String unit) {
+        unit = unit.toLowerCase();
+        switch (unit) {
+          case "ns": return nanos;
+          case "us": return nanos / 1_000.0;
+          case "ms": return nanos / 1_000_000.0;
+          case "s":
+          case "sec": return nanos / 1_000_000_000.0;
+          case "min": return nanos / (60.0 * 1_000_000_000);
+          case "h":
+          case "hr": return nanos / (3600.0 * 1_000_000_000);
+          case "d":
+          case "day": return nanos / (24.0 * 3600 * 1_000_000_000);
+          default: throw new IllegalArgumentException("Unsupported time unit: " + unit);
+        }
+      }
+ 
+     @Override
+     public String toString() {
+         return original;
+     }
+ 
+     /**
       * Parses time duration string into nanoseconds
       * @param value Time duration string (e.g., "100ms", "5s", "1min")
       * @return duration in nanoseconds
@@ -81,32 +108,30 @@
       * @throws IllegalArgumentException if the time unit is unrecognized
       */
      private long parseTimeDuration(String value) {
-         // Extract numeric part
          String numStr = value.replaceAll("[^0-9.]", "");
          if (numStr.isEmpty()) {
              throw new NumberFormatException("No numeric value found in: " + value);
          }
-         double number = Double.parseDouble(numStr);
-         
-         // Extract and normalize unit
-         String unit = value.substring(numStr.length()).trim().toLowerCase();
-         
-         // Convert to nanoseconds
-         if (unit.isEmpty() || unit.equals("ms")) {
-             return (long) (number * 1_000_000);
-         } else if (unit.equals("us") || unit.equals("μs")) {
-             return (long) (number * 1_000);
-         } else if (unit.equals("ns")) {
-             return (long) number;
-         } else if (unit.equals("s") || unit.equals("sec")) {
-             return (long) (number * 1_000_000_000);
-         } else if (unit.equals("min")) {
-             return (long) (number * 60 * 1_000_000_000L);
-         } else if (unit.equals("h") || unit.equals("hr")) {
-             return (long) (number * 60 * 60 * 1_000_000_000L);
-         } else if (unit.equals("d") || unit.equals("day")) {
-             return (long) (number * 24 * 60 * 60 * 1_000_000_000L);
+         if (numStr.contains("..") || numStr.endsWith(".") || numStr.startsWith(".")) {
+             throw new NumberFormatException("Invalid numeric format in: " + value);
          }
-         throw new IllegalArgumentException("Unrecognized time unit in: " + value);
+         double number = Double.parseDouble(numStr);
+         String unit = value.substring(numStr.length()).trim().toLowerCase();
+         if (unit.isEmpty()) {
+             throw new IllegalArgumentException("No time unit specified in: " + value);
+         }
+         switch (unit) {
+             case "ns": return (long) number;
+             case "us": return (long) (number * 1_000);
+             case "ms": return (long) (number * 1_000_000);
+             case "s":
+             case "sec": return (long) (number * 1_000_000_000);
+             case "min": return (long) (number * 60 * 1_000_000_000);
+             case "h":
+             case "hr": return (long) (number * 3600 * 1_000_000_000);
+             case "d":
+             case "day": return (long) (number * 86400 * 1_000_000_000);
+             default: throw new IllegalArgumentException("Unrecognized time unit in: " + value);
+         }
      }
  }

@@ -22,6 +22,7 @@ import io.cdap.wrangler.api.SourceInfo;
 import io.cdap.wrangler.api.Triplet;
 import io.cdap.wrangler.api.parser.Bool;
 import io.cdap.wrangler.api.parser.BoolList;
+import io.cdap.wrangler.api.parser.ByteSize;
 import io.cdap.wrangler.api.parser.ColumnName;
 import io.cdap.wrangler.api.parser.ColumnNameList;
 import io.cdap.wrangler.api.parser.DirectiveName;
@@ -33,6 +34,7 @@ import io.cdap.wrangler.api.parser.Properties;
 import io.cdap.wrangler.api.parser.Ranges;
 import io.cdap.wrangler.api.parser.Text;
 import io.cdap.wrangler.api.parser.TextList;
+import io.cdap.wrangler.api.parser.TimeDuration;
 import io.cdap.wrangler.api.parser.Token;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.Interval;
@@ -316,6 +318,44 @@ public final class RecipeVisitor extends DirectivesBaseVisitor<RecipeSymbol.Buil
     builder.addToken(new TextList(strs));
     return builder;
   }
+
+  /**
+    * A Directive can include byte size values with units (e.g., 10KB, 5MB). This visitor method extracts
+    * the byte size value and creates a token type <code>ByteSize</code> to be added to <code>TokenGroup</code>.
+    *
+    * <p>Supported units: b, kb, mb, gb, tb, pb (case-insensitive)</p>
+    *
+    * @param ctx The parse tree context containing the byte size value
+    * @return Builder instance for chaining
+    */
+    @Override
+    public RecipeSymbol.Builder visitByteSizeArg(DirectivesParser.ByteSizeArgContext ctx) {
+      try {
+        builder.addToken(new ByteSize(ctx.BYTE_SIZE().getText()));
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Invalid byte size: " + e.getMessage(), e);
+      }
+      return builder;
+    }
+ 
+   /**
+    * A Directive can include time duration values with units (e.g., 100ms, 5s). This visitor method extracts
+    * the time duration value and creates a token type <code>TimeDuration</code> to be added to <code>TokenGroup</code>.
+    *
+    * <p>Supported units: ns, us, ms, s, sec, min, h, hr, d, day (case-insensitive)</p>
+    *
+    * @param ctx The parse tree context containing the time duration value
+    * @return Builder instance for chaining
+    */
+    @Override
+    public RecipeSymbol.Builder visitTimeDurationArg(DirectivesParser.TimeDurationArgContext ctx) {
+      try {
+        builder.addToken(new TimeDuration(ctx.TIME_DURATION().getText()));
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Invalid time duration: " + e.getMessage(), e);
+      }
+      return builder;
+    }
 
   private SourceInfo getOriginalSource(ParserRuleContext ctx) {
     int a = ctx.getStart().getStartIndex();
